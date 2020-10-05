@@ -628,3 +628,130 @@ begin
 end
 //
 
+-- reservacion de vuelo
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar la informacion de una reserva
+*/
+DROP PROCEDURE IF EXISTS  sh_info_reserv;
+DELIMITER //
+create procedure sh_info_reserv (in v_id_reserv int)
+begin
+	SELECT a.id_reserv, count(h.fila_reserv) as num_asientos,a.fecha_hora_reserv,d.id_aerolinea,
+    d.nombre_aerolinea,d.hub,b.codigo_vuelo,g.nombre_ciudad,
+    b.salida_vuelo,f.nombre_ciudad,b.llegada_vuelo, calcula_monto(v_id_reserv) as monto_reserva
+    FROM reservacion_vuelo a
+    INNER JOIN vuelo b
+    ON a.codigo_vuelo = b.codigo_vuelo
+    INNER JOIN avion c
+    ON b.matricula = c.matricula
+    INNER JOIN aerolinea d
+    ON c.id_aerolinea = d.id_aerolinea
+    INNER JOIN ciudadxvuelo e
+    ON b.codigo_vuelo = e.codigo_vuelo
+    INNER JOIN ciudad f
+    ON e.destino_vuelo = f.codigo_ciudad
+    INNER JOIN ciudad g 
+    ON e.origen_vuelo = g.codigo_ciudad
+    INNER JOIN clientexreservacion h
+    ON a.id_reserv = h.id_reserv
+    WHERE a.id_reserv = v_id_reserv
+    GROUP BY a.id_reserv,g.nombre_ciudad,f.nombre_ciudad;
+end
+//
+	CALL sh_info_reserv(5);
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar la informacion de los clientes que hicieron una reserva
+*/
+DROP PROCEDURE IF EXISTS  sh_info_reserv_personas;
+DELIMITER //
+create procedure sh_info_reserv_personas (in v_id_reserv int)
+begin
+	SELECT c.pasaporte_cliente,c.nombre_cli,c.pri_apellido,c.seg_apellido
+    FROM reservacion_vuelo a
+    INNER JOIN clientexreservacion b
+    ON a.id_reserv = b.id_reserv
+    INNER JOIN cliente c
+    ON b.pasaporte_cliente = c.pasaporte_cliente
+    WHERE a.id_reserv = v_id_reserv;
+end
+//
+
+/*
+Entrada: Dos enteros, Dos varchar
+Salida: No posee
+Funcionalidad: Procedure encargado de modificar un asiento de ocupado a desocupado
+*/
+DROP PROCEDURE IF EXISTS  limpia_asiento;
+DELIMITER //
+create procedure limpia_asiento (in v_codigo_vuelo INT,in v_fila_reserv VARCHAR(1),in v_tipo_asiento_reserv VARCHAR(5),in v_num_asiento_reserv INT(10))
+begin
+ UPDATE detalle_vuelo
+      SET tipo_asiento=v_tipo_asiento_reserv
+      WHERE codigo_vuelo = v_codigo_vuelo and fila = v_fila_reserv and num_asiento = v_num_asiento_reserv;
+end
+//
+/*
+Entrada: Dos enteros, Dos varchar
+Salida: No posee
+Funcionalidad: Procedure encargado de modificar un asiento de desocupado a ocupado
+*/
+DROP PROCEDURE IF EXISTS  pone_asiento;
+DELIMITER //
+create procedure pone_asiento (in v_num_asiento_reserv INT(10),in v_codigo_vuelo INT,in v_fila_reserv VARCHAR(2),in v_tipo_asiento_reserv VARCHAR(5))
+begin
+ UPDATE detalle_vuelo
+      SET tipo_asiento=v_tipo_asiento_reserv
+      WHERE codigo_vuelo = v_codigo_vuelo and fila = v_fila_reserv and num_asiento = v_num_asiento_reserv;
+end
+//
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de eliminar toda la informacion de una reserva
+*/
+DROP PROCEDURE IF EXISTS  elimina_reserv;
+DELIMITER //
+create procedure elimina_reserv (in v_id_reserv INT)
+begin
+        
+	DECLARE v_codigo_vuelo INT;
+    DECLARE v_fila VARCHAR(1);
+    DECLARE v_tipo_asiento VARCHAR(5);
+    DECLARE v_num_asiento INT(10);
+    DECLARE v_ind_edad VARCHAR(1);
+    DECLARE fin INTEGER DEFAULT 0;
+    
+    DECLARE c1 CURSOR FOR 
+		SELECT a.codigo_vuelo,b.fila_reserv,b.tipo_asiento_reserv,b.num_asiento_reserv, b.ind_edad 
+		FROM reservacion_vuelo a
+		INNER JOIN clientexreservacion b
+		ON a.id_reserv = b.id_reserv
+		WHERE a.id_reserv = v_id_reserv;
+    
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET fin=1;
+    
+	OPEN c1;
+    ciclo: LOOP
+		FETCH c1 INTO v_codigo_vuelo,v_fila,v_tipo_asiento,v_num_asiento, v_ind_edad;
+		IF fin = 1 THEN
+			LEAVE ciclo;
+	    END IF;
+	
+		IF v_ind_edad = 'A' THEN
+			call limpia_asiento (v_codigo_vuelo,v_fila,v_tipo_asiento,v_num_asiento);
+		END IF;
+    
+		DELETE FROM clientexreservacion WHERE id_reserv = v_id_reserv;
+        DELETE FROM reservacion_vuelo WHERE id_reserv = v_id_reserv;
+    
+    END loop ciclo;
+    CLOSE c1;
+end
+//
+
+
