@@ -6,6 +6,16 @@
 #include <stdlib.h>
 #define len_char 40
 
+struct usuario
+{
+    char primera[300];
+    char fecha[10];
+}usuario[2];
+/*
+Estructura encargada de almacenar los usuarios a la hora de cargar_usuarios.
+
+*/
+
 void menu_principal();
 /*
 Entradas:Ninguna
