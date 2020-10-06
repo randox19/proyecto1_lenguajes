@@ -1,0 +1,3313 @@
+//Bibliotecas usadas a lo largo del programa
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <mysql/mysql.h>
+#include <stdlib.h>
+#define len_char 40
+
+struct usuario
+{
+    char primera[300];
+    char fecha[10];
+}usuario[2];
+/*
+Estructura encargada de almacenar los usuarios a la hora de cargar_usuarios.
+
+*/
+
+void menu_principal();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime por medio de caracteres el menu principal.
+*/
+
+void menu_general();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime por medio de caracteres el menu general.
+*/
+void menu_operativo();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime por medio de caracteres el menu operativo.
+*/
+int cargar_usuarios();
+/*
+Entradas:Ninguna
+Salidas: Un entero
+Función: Lee el archivo usuarios.txt lo extrae los datos por medios de comas y los modifica para que después se realice el ingreso.
+*/
+void insertar_usuario();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Una vez extraido los datos esta función se encarga de ingresarlos a la base de datos
+*/
+void registro_usuarios();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime por medio de caracteres el menu para las consultas de el registro de aviones.
+*/
+void quitar_Char(char *str, char basura);
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Quita un caracter específico a una cadena.
+*/
+void agregar_avion ();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Agrega un avión con los datos necesarios para el mismo, valida que no sea un avión repetido o existente.
+*/
+void eliminar_avion();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Elimina un avión en específico, valida que no tenga un vuelo asociado.
+*/
+void filtrar_aviones();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Filtra los aviones por medio de marca, dando como resultado una tabla con todos los modelos y especificaciones de esa marca.
+*/
+void estado_vuelo();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime el estado del vuelo graficamente y muestra especificaciones del mismo vuelo junto con que pasajeros cuenta.
+*/
+void estadisticas();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime las 2 estadisticas, una con el top 3 de los vuelos que más dinero han recaudado y otra con los vuelos por la cantidad de pasajeros.
+*/
+void reserv_def();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Crea un formato para la introdución de la reserva, además valida que el formato y especificaciones estén acordes para que seguidamente se le ingrese
+los datos captados a la base de datos, también genera un informe de la reserva por medio de un nombre que se le brinda.
+*/
+
+void estado_reserv();
+/*
+Entradas:Ninguna
+Salidas: Ninguna
+Función: Imprime el último informe de la última reserva realizada
+*/
+
+#include "script.h"
+#include "registro_aviones.c"
+#include "estado_vuelo.c"
+#include "estadisticas.c"
+#include "cargar_usuarios.c"
+#include "reservacion_def.c"
+
+void quitar_Char(char *str, char basura) {
+
+    char *src, *dst;
+    for (src = dst = str; *src != '\0'; src++) {
+        *dst = *src;
+        if (*dst != basura) dst++;
+    }
+    *dst = '\0';
+}
+
+
+int main () {
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    
+    char usuario[40];
+    char contrasenna[40];
+    char ptr[200];
+    char ptr2[200];
+    char comilla[2]="'";
+    int bandera;
+    bandera=0;
+
+
+    
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    FILE *flujo = fopen("usuarios_reporte.txt", "w");
+    if (flujo==NULL){
+        perror("Error en la creacion del archivo \n\n");
+    
+    }
+    else
+    {
+        fprintf(flujo,"");
+    }
+    do{
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t             Bienvenido  \n");
+	printf("\n\t\t ************************************\n");
+    printf("\nIntroduzca su nombre de usuario: "); 
+    fgets(usuario,40,stdin );
+    printf("\nIntroduzca su contraseña: "); 
+    fgets(contrasenna,40,stdin );
+    quitar_Char(contrasenna, '\n');
+    quitar_Char(usuario, '\n');
+
+
+    strcpy(ptr,"Select MD5 ('");
+    strcpy(ptr2,contrasenna);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\nUsuario o Contraseña incorrectos "); 
+        bandera=1;
+
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "\nUsuario o Contraseña incorrectos ");       
+           
+        }
+        else
+        {
+            strcpy(contrasenna,row[0]);
+            bandera=0;
+            
+            
+            
+        }
+   
+    mysql_free_result(res);
+    }
+
+    strcpy(ptr,"Select * from aerolinea where nombre_usuario ='");
+    strcpy(ptr2,usuario);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2," and contrasenna='");
+    strcpy(ptr,strcat(ptr,ptr2));  
+    strcpy(ptr2,contrasenna);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\nUsuario o Contraseña incorrectos  "); 
+        bandera=1;
+
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "\nUsuario o Contraseña incorrectos ");       
+           
+        }
+        else
+        {
+           bandera=0;
+        
+            
+            
+        }
+    }
+    
+    
+    }while (bandera==1);
+    
+    mysql_free_result(res);
+    mysql_close(conn);
+    menu_principal();
+    
+    
+    return 0;
+}
+
+
+void menu_principal(){
+	
+    int opcion;
+    char temp[40];
+   
+    do{
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t            Menu Principal  \n");
+	printf("\n\t\t ************************************\n");
+    printf ("\n 1.Opciones Generales");
+    printf ("\n 2.Opciones Operativas");
+    printf ("\n 3.Salir\n");
+    printf("\nIntroduzca su opcion del 1 al 3: "); 
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    opcion=atoi(temp);
+
+
+    switch (opcion)
+        {
+        case 1: 
+            menu_general();
+            break;
+        case 2: 
+            menu_operativo();
+            break;
+        case 3: 
+            break;
+        default:
+            printf("\nSeleccione una opción del 1-3\n");
+            break;
+            }
+    }while (opcion != 3 );
+}
+void menu_operativo(){
+	
+    int opcion;
+    char temp[40];
+    do{
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t            Menu Operativo  \n");
+	printf("\n\t\t ************************************\n");
+    printf ("\n 1.Registro de Aviones");
+    printf ("\n 2.Carga de usuarios");
+    printf ("\n 3.Estado de vuelo");
+    printf ("\n 4.Estadísticas");
+    printf ("\n 5.Volver al menu principal\n");
+    printf("\nIntroduzca su opcion del 1 al 5: "); 
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    opcion=atoi(temp);
+
+    switch (opcion)
+    {
+    case 1: 
+        registro_usuarios();
+        break;
+    case 2: 
+        cargar_usuarios();
+        break;
+    case 3: 
+        estado_vuelo();
+        break;
+    case 4: 
+        estadisticas();
+        break;
+    default:
+        break;
+    }
+    }while (opcion != 5);
+    
+    
+
+}
+
+void menu_general(){
+        int opcion;
+    char temp[40];
+    do{
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t            Menu General  \n");
+	printf("\n\t\t ************************************\n");
+    printf ("\n 1.Reservación de vuelo");
+    printf ("\n 2.Información de reserva");
+    printf ("\n 3.Volver al menu principal\n");
+    printf("\nIntroduzca su opcion del 1 al 3: "); 
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    opcion=atoi(temp);
+
+    
+    switch (opcion)
+    {
+    case 1: 
+        reserv_def();
+        break;
+    case 2: 
+        estado_reserv();
+        break;
+    default:
+        printf("\n Seleccione una opción del 1-3");
+        break;
+    }
+    }while (opcion != 3);
+    
+
+}
+
+#include "script.h"
+
+void registro_usuarios(){
+    int opcion;
+    char temp[40];
+    
+    do{
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t          Registro de aviones  \n");
+	printf("\n\t\t ************************************\n");
+    printf ("\n 1.Agregar un avión");
+    printf ("\n 2.Mostrar aviones");
+    printf ("\n 3.Eliminar un avion");
+    printf ("\n 4.Volver al menu operativo\n");
+    printf("\nIntroduzca su opcion del 1 al 4: ");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    opcion=atoi(temp);
+
+    switch (opcion)
+    {
+    case 1: 
+        agregar_avion();
+        break;
+    case 2: 
+        filtrar_aviones();
+        break;
+    case 3: 
+        eliminar_avion();
+        break;
+    case 4: 
+        break;
+    default:
+         printf("\n Seleccione una opción del 1-4\n");
+        break;
+    }
+    }while (opcion != 4);
+    
+
+
+}
+void agregar_avion (){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+
+    char salir[2];
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+    char coma[2]=",";
+    char comilla[2]="'";
+    int bandera;
+
+    int matricula;
+    char marca[20];
+    char modelo[20];
+    int anno;
+    int id_aerolinea;
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+
+    
+    do{
+        printf("\nMATRÍCULAS NO DISPONIBLES\n");
+    if (mysql_query(conn,"select * from avion;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+
+    res = mysql_use_result(conn);
+    
+    printf("\n _________");
+    printf("\n|Matricula|");
+    printf("\n ---------");
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s    |\n", row[0]);
+    }
+        printf("\n");
+
+    
+    printf("\nIntroduce la matricula (Número 10000-99999) y que NO se encuentre en la tabla anterior para el nuevo avión:");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    matricula=atoi(temp); 
+
+    strcpy(ptr,"Select matricula from avion where matricula = ");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+   
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+        bandera=1;
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+
+            if (matricula<99999 && matricula>10000)
+            { bandera=0;
+            }
+        }
+        else
+        {
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "Ese avion esta en la tabla o no es un número");        
+            
+        }
+
+    }
+ 
+
+    mysql_free_result(res);
+    
+    }while (bandera==1);
+    
+    printf("\nIntroduce la marca del avión:");
+    fgets(marca,40,stdin);
+    printf("\nIntroduce el modelo del avión:");
+    fgets(modelo,40,stdin);
+    
+    do{
+    fflush(stdin);
+    printf("\nIntroduce el año (Número 1900-3000) del avión:");
+    fgets(temp,40,stdin);
+    anno=atoi(temp);
+        switch (anno)
+        {
+        default:
+            break;
+        }
+    
+    }while(anno>3000 || anno<1900);
+
+    
+    do{
+    printf("\nAEROLINIAS DISPONIBLES\n");
+    if (mysql_query(conn,"select * from aerolinea;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+    printf("\n ________________________________________");
+    printf("\n|id_aerolinea|   Hub  |Nombre |Usuario   |");
+    printf("\n ----------------------------------------");
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s    |%s|%s|%s|\n", row[0], row[1], row[2], row[3]);
+    }
+    
+    printf("\n");
+    res = mysql_use_result(conn);
+    printf("\nIntroduce el id (Seleccione unicamente uno de la tabla anterior) de la aerolinia en que se encuentra el avión:");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    id_aerolinea=atoi(temp);
+
+   
+    strcpy(ptr,"Select id_aerolinea from aerolinea where id_aerolinea = ");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));    
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+        bandera=1;
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+       
+        if (row==NULL){
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "Por favor seleccione un id_aerolinea de la tabla válido");  
+        }
+        else
+        {
+            bandera=0;
+                 
+        }
+
+    }
+    mysql_free_result(res);
+    
+    }while (bandera==1);
+     
+
+    // send SQL query /
+    char matricula_c[20];
+    sprintf(matricula_c, "%d",matricula);
+    
+    char anno_c[20];
+    sprintf(anno_c,"%d",anno);
+
+    char id_aerolinea_c[20];
+    sprintf(id_aerolinea_c,"%d", id_aerolinea);
+
+    quitar_Char(matricula_c, '\n');
+    quitar_Char(anno_c, '\n');
+    quitar_Char(marca, '\n');
+    quitar_Char(modelo,'\n');
+    quitar_Char(id_aerolinea_c, '\n');
+
+
+    strcpy(ptr,"Insert into avion values(");
+    strcpy(ptr2,matricula_c);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,marca);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,modelo);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr2,anno_c);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr2,id_aerolinea_c);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,")");
+    strcpy(ptr,strcat(ptr,ptr2));
+
+
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "No se pudo insertar '%s'\n No se siguió todas las instrucciones correctamente", ptr);
+    }
+    else
+    {
+        fflush(stdout);
+        fprintf(stdout, "Se incerto con exito!");
+    }
+
+    res = mysql_use_result(conn);
+
+    // close connection 
+    mysql_commit(conn);
+    mysql_close(conn);
+
+
+    
+
+
+}
+
+void eliminar_avion (){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    int bandera;
+    int bandera2;
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+    char coma[2]=",";
+    char comilla[2]="'";
+
+    int matricula;
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    do{
+        printf("\nMATRÍCULAS  DISPONIBLES\n");
+    if (mysql_query(conn,"select * from avion;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+    
+    printf("\n _________");
+    printf("\n|Matricula|");
+    printf("\n ---------");
+    
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s    |\n", row[0]);
+    }
+        printf("\n");
+    
+    printf("\nAVIONES CON VUELOS ASIGNADOS\n");
+    if (mysql_query(conn,"select * from vuelo;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+    
+    printf("\n ______");
+    printf("\n|Vuelos|");
+    printf("\n ------");
+    
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s |\n", row[1]);
+    }
+        printf("\n");
+    res = mysql_use_result(conn);
+    printf("\nIntroduce la matrícula (Número 10000-99999) y que SI se encuentre en la tabla \n'MATRICULAS  DISPONIBLES' y además que NO esté en 'AVIONES CON VUELOS ASIGNADOS':");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    matricula=atoi(temp);
+    
+    strcpy(ptr,"Select matricula from avion where matricula = ");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+   
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+        bandera=1;
+        bandera2=1;
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            bandera=1;
+            bandera2=1;
+            fflush(stdout);
+            fprintf(stdout, "Ese avion no esta en la tabla o no es un número");        
+           
+        }
+        else
+        {
+                
+            if (matricula<99999 && matricula>10000)
+            { bandera=0;
+              bandera2=0;
+            }
+            
+        }
+    }
+    
+    mysql_free_result(res);
+
+   
+    
+    //REALIZARN CONSULTAS CRUDS
+
+    // send SQL query /
+    char matricula_c[20];
+    sprintf(matricula_c, "%d",matricula);
+
+    strcpy(ptr,"DELETE FROM avion where matricula = ");
+    strcpy(ptr2,matricula_c);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\nEse avion tiene un vuelo asignado no se puede eliminar");
+        bandera2=1;
+    }
+    else
+    {
+        bandera=0;
+        if(bandera2==0){
+        fflush(stdout);
+        fprintf(stdout, "\nEliminado con exito!");
+        }
+    }
+    
+
+    }while (bandera==1 || bandera2==1);
+
+
+    // close connection 
+    mysql_close(conn);
+
+
+
+
+}
+
+void filtrar_aviones(){
+
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    int bandera;
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+    char comilla[2]="'";
+
+    
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    do{
+     printf("\nMARCA DE LOS AVIONES DISPONIBLES\n");
+    if (mysql_query(conn,"select * from avion;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+    
+    printf("\n ______");
+    printf("\n|Marcas|");
+    printf("\n ------\n");
+    
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s |\n", row[1]);
+    }
+        printf("\n");
+    res = mysql_use_result(conn);
+
+    
+    printf("\nIntroduzca la marca del avión que desea filtrar(unicamente elija una de la tabla anterior):");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    quitar_Char(temp, '\n');
+    strcpy(ptr,"Select distinct marca from avion where marca ='");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Esa marca de avion no esta en la tabla "); 
+        bandera=1;
+
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "Esa marca de avion no esta en la tabla ");        
+           
+        }
+        else
+        {
+           bandera=0;
+        
+            
+            
+        }
+    }
+    
+    mysql_free_result(res);
+    }while (bandera==1);
+
+
+    strcpy(ptr,"CALL sh_marca_avion('");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+    res = mysql_use_result(conn);
+    printf("\n _________ _____ ______ ____ ____________");
+    printf("\n|Matricula|Marca|modelo|anno|id_aerolinea| ");
+    printf("\n --------- ----- ------ ---- ------------\n");
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s|%s|%s|%s|%s|\n",row[0],row[1],row[2],row[3],row[4]);
+    }
+        printf("\n");
+    res = mysql_use_result(conn); 
+    mysql_free_result(res);
+    mysql_close(conn);
+
+}
+
+#include "script.h"
+
+char id_reserv[3];
+
+void reserv_def(){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    int error=0;
+
+    int bandera=0;
+    char entrada_asiento[200];
+    char entrada_pasaporte[200];
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+
+    char * token_pasaportes;
+    char extraido[40];
+    int formato_incorrecto=0;
+    int pasaporte_duplicado=0;
+    int formato_incorrecto_p=0;
+
+    char pasaporte[20];
+    int num_asientos_int;
+
+
+    char * token_asientos;
+    int contador=0;
+    char fila[3];
+    char num_asi[2];
+    char num_asi2[2];
+    char tipo[3];
+    int asiento_ocupado=0;
+    int asiento_duplicado=0;
+    char coma[2]=",";
+    char comilla[2]="'";
+    char num_asientos_A[3];
+    char num_asientos_totales[2];
+    
+    char tipo_aux[3];
+    
+    char comprobante[200];
+    char comprobante_pdf[200];
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+    
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+    if (mysql_query(conn,"truncate table temp_entradas_asiento;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    mysql_close(conn);
+    
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    if (mysql_query(conn,"truncate table temp_entradas_pasaporte;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+
+    mysql_close(conn);
+    
+    do{
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    printf("\nCÓDIGO DE VUELOS DISPONIBLES\n");
+    if (mysql_query(conn,"select distinct codigo_vuelo from detalle_vuelo;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+//PRIMERA PARTE CONSULTA   
+    
+    printf("\n ____________");
+    printf("\n|Código_Vuelo|");
+    printf("\n ------------");
+    
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s       |\n", row[0]);
+    }
+        printf("\n");
+    res = mysql_use_result(conn);
+    mysql_free_result(res);
+    mysql_close(conn);
+    
+    printf("\nIntroduzca la el código de vuelo a consultar(unicamente elija uno de la tabla anterior):");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    quitar_Char(temp, '\n');
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"Select distinct codigo_vuelo from vuelo where codigo_vuelo =");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+        bandera=1;
+
+    }
+    else {
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+        bandera=1;
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla ");       
+           
+    }
+    else
+    {
+            
+        bandera=0;
+        
+            
+            
+    }
+    }
+    mysql_free_result(res);
+    mysql_close(conn);
+    
+    
+
+}while (bandera==1);
+//Printea el menu
+    printf("\nSimbología:");
+    printf("\nBL: Business libre.");
+    printf("\nBO: Business ocupado."); 
+    printf("\nSL: Premium Economy libre.");
+    printf("\nSO: Premium Economy ocupado.");
+    printf("\nEL: Economy libre.");
+    printf("\nEO: Economy ocupado.");
+
+
+    printf("\n _________ _____ ______ ____ ____________");
+    printf("\n|DETALLE GRAFICAMENTE DEL ESTADO DE VUELO| ");
+    printf("\n --------- ----- ------ ---- ------------\n");
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='A'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila A");       
+        
+    }
+    else
+    {
+        printf("\nA: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+        
+    }
+    mysql_free_result(res);
+    mysql_close(conn);  
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='B'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila B");       
+        
+    }
+    else
+    {
+        printf("\nB: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+        
+    }
+    mysql_free_result(res);
+    mysql_close(conn);  
+   
+   
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='C'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila C");       
+        
+    }
+    else
+    {
+        printf("\nC: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+        
+        
+    }
+    mysql_free_result(res);
+    mysql_close(conn);  
+    
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='D'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila D");       
+        
+    }
+    else
+    {
+        printf("\nD: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+    
+        
+    }
+    mysql_free_result(res);  
+    mysql_close(conn);
+
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='E'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila E");       
+        
+    }
+    else
+    {
+        printf("\nE: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+    
+        
+    }
+    mysql_free_result(res);  
+    mysql_close(conn);
+
+
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='F'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "Ese codigo vuelo no cuenta con fila F");       
+        
+    }
+    else
+    {
+        printf("\nF: ");
+        printf(" %s_%s,",row[1],row[2]); 
+        while ((row = mysql_fetch_row(res))!=NULL)
+        {
+            printf(" %s_%s,",row[1],row[2]);    
+        }
+        printf("\n");
+        
+        
+    }
+    mysql_free_result(res);
+    mysql_close(conn);  
+    
+
+//MENU
+    printf("\nIntroduzca los pasaportes de los usuarios para reservar Formato: 11111,11116,11117: ");
+    fflush(stdin);
+    fgets(entrada_pasaporte,200,stdin);
+    quitar_Char(entrada_pasaporte, '\n');
+    printf("\nSimbología:");
+    printf("\nBL: Business libre.");
+    printf("\nSL: Premium Economy.");
+    printf("\nEL: Economy.");
+
+    printf("\nIntroduzca los asientos de los usuarios para reservar(Siga la simbología anterior junto con el formato) Formato: A_BL_1,B_BL_2,C_BL_3: ");
+    fflush(stdin);
+    
+    fgets(entrada_asiento,200,stdin);
+    quitar_Char(entrada_asiento, '\n');
+    
+
+
+//PARTE PASAPORTE
+    token_pasaportes= strtok(entrada_pasaporte, ",");
+    while( token_pasaportes != NULL) {
+            
+            strcpy(extraido,token_pasaportes);
+            quitar_Char(extraido,'\n');
+            
+            conn = mysql_init(NULL);
+
+            // Connect to database /
+            if (!mysql_real_connect(conn, server, user, password, 
+                                            database, 0, NULL, 0)) {
+                
+                fprintf(stderr, "%s\n", mysql_error(conn));
+                exit(1);
+            }
+
+            strcpy(ptr,"Select * from cliente where  pasaporte_cliente= ");
+            strcpy(ptr2,extraido);
+            strcpy(ptr,strcat(ptr,ptr2));
+            strcpy(ptr2,";");
+            strcpy(ptr,strcat(ptr,ptr2));  
+            if (mysql_query(conn,ptr)){
+                fflush(stdout);
+                fprintf(stdout, "\n%s", mysql_error(conn));
+                formato_incorrecto=1; 
+                
+                 
+                
+
+            }
+                
+            else
+            {
+                res = mysql_use_result(conn);
+                row = mysql_fetch_row(res);
+                
+                if (row==NULL){
+                    fflush(stdout);     
+                    formato_incorrecto=1;
+                    error=1;
+                }    
+                mysql_free_result(res);
+                mysql_close(conn); 
+                if (error==0)
+                {
+                    conn = mysql_init(NULL);
+
+                    // Connect to database /
+                    if (!mysql_real_connect(conn, server, user, password, 
+                                                    database, 0, NULL, 0)) {
+                        
+                        fprintf(stderr, "%s\n", mysql_error(conn));
+                        exit(1);
+                    }
+
+                    formato_incorrecto=0;    
+                    strcpy(ptr,"CALL insertar_pasaportes(");
+                    strcpy(ptr2,extraido);
+                    strcpy(ptr,strcat(ptr,ptr2));
+                    strcpy(ptr2,");");
+                    strcpy(ptr,strcat(ptr,ptr2)); 
+
+                    if (mysql_query(conn,ptr)){
+                        fflush(stdout);
+                        fprintf(stdout, "\n%s",mysql_error(conn)); 
+                        pasaporte_duplicado=1;
+
+                    }
+                    else
+                    {
+                        pasaporte_duplicado=0;
+                    
+                    } 
+                
+                    mysql_close(conn);
+                }
+            
+            }
+            
+        token_pasaportes = strtok(NULL, ",");
+
+    }
+
+if (formato_incorrecto ==1)
+{
+    printf("\nFormato incorrecto o no se encontro");
+    formato_incorrecto_p=1;  
+}
+if (pasaporte_duplicado==1)
+{
+    printf("\nAlmenos 1 pasaporte esta duplicado");
+}
+formato_incorrecto=0;
+
+//PARTE ASIENTOS
+
+    token_asientos = strtok(entrada_asiento, "_,");
+    while( token_asientos != NULL) {
+
+        strcpy(extraido,token_asientos);
+        quitar_Char(extraido,'\n');
+
+        switch (contador)
+        {
+        case 0:
+            strcpy(fila,extraido);
+            contador=contador+1;
+            break;
+        case 1:
+            strcpy(tipo_aux,extraido);
+            if (strcmp(tipo_aux,"BO")==0)
+            {
+                strcpy(tipo,extraido);
+                asiento_ocupado=1;
+                
+            }
+            else if (strcmp(tipo_aux,"bo")==0)
+            {
+                strcpy(tipo,extraido);
+                asiento_ocupado=1;
+                
+            }
+            else{
+                strcpy(tipo,extraido);
+    
+
+            }
+            
+            contador=contador+1;   
+            break;
+        case 2:
+            conn = mysql_init(NULL);
+
+            // Connect to database /
+            if (!mysql_real_connect(conn, server, user, password, 
+                                            database, 0, NULL, 0)) {
+                
+                fprintf(stderr, "%s\n", mysql_error(conn));
+                exit(1);
+            }
+
+            
+            strcpy(num_asi,extraido);
+            strcpy(ptr,"Select * from detalle_vuelo where codigo_vuelo= ");
+            strcpy(ptr2,temp);
+            strcpy(ptr,strcat(ptr,ptr2));
+            strcpy(ptr2," and fila='");
+            strcpy(ptr,strcat(ptr,ptr2));  
+            strcpy(ptr2,fila);
+            strcpy(ptr,strcat(ptr,ptr2));
+            strcpy(ptr,strcat(ptr,comilla));
+            strcpy(ptr2," and num_asiento=");
+            strcpy(ptr,strcat(ptr,ptr2));  
+            strcpy(ptr2,num_asi);
+            strcpy(ptr,strcat(ptr,ptr2));
+            strcpy(ptr2," and tipo_asiento='");
+            strcpy(ptr,strcat(ptr,ptr2));
+            quitar_Char(tipo,'0');
+            quitar_Char(tipo,'1');
+            quitar_Char(tipo,'2');
+            quitar_Char(tipo,'3');
+            quitar_Char(tipo,'4');
+            quitar_Char(tipo,'5');
+            quitar_Char(tipo,'6');
+            quitar_Char(tipo,'7');
+            quitar_Char(tipo,'8');
+            quitar_Char(tipo,'9');
+            strcpy(ptr2,tipo);
+            strcpy(ptr,strcat(ptr,ptr2));
+            strcpy(ptr2,"';");
+            strcpy(ptr,strcat(ptr,ptr2));
+   
+
+            if (mysql_query(conn,ptr)){
+                fflush(stdout);
+                fprintf(stdout, "\n%s",mysql_error(conn)); 
+                formato_incorrecto=1;
+            }
+            else
+            {
+                        
+                res = mysql_use_result(conn);
+                row = mysql_fetch_row(res);
+                if (row==NULL){
+                    fprintf(stdout, "\n%s",mysql_error(conn)); 
+                    formato_incorrecto=1;
+
+                }
+
+                mysql_free_result(res);
+                mysql_close(conn); 
+ 
+      
+                if (formato_incorrecto==0)
+                {
+                    conn = mysql_init(NULL);
+
+                    // Connect to database /
+                    if (!mysql_real_connect(conn, server, user, password, 
+                                                    database, 0, NULL, 0)) {
+                        
+                        fprintf(stderr, "%s\n", mysql_error(conn));
+                        exit(1);
+                    }
+                    strcpy(num_asi,extraido);
+                    strcpy(ptr,"INSERT INTO temp_entradas_asiento (fila,num_asiento,tipo) values(");
+                    strcpy(ptr,strcat(ptr,comilla));
+                    strcpy(ptr2,fila);
+                    strcpy(ptr,strcat(ptr,ptr2));
+                    strcpy(ptr,strcat(ptr,comilla));
+                    strcpy(ptr,strcat(ptr,coma));
+                    strcpy(ptr2,num_asi);
+                    strcpy(ptr,strcat(ptr,ptr2)); 
+                    strcpy(ptr,strcat(ptr,coma));
+                    strcpy(ptr,strcat(ptr,comilla));
+                    quitar_Char(tipo,'0');
+                    quitar_Char(tipo,'1');
+                    quitar_Char(tipo,'2');
+                    quitar_Char(tipo,'3');
+                    quitar_Char(tipo,'4');
+                    quitar_Char(tipo,'5');
+                    quitar_Char(tipo,'6');
+                    quitar_Char(tipo,'7');
+                    quitar_Char(tipo,'8');
+                    quitar_Char(tipo,'9');
+                    strcpy(ptr2,tipo);
+                    strcpy(ptr,strcat(ptr,ptr2));
+                    strcpy(ptr,strcat(ptr,comilla));
+                    strcpy(ptr2,");");
+                    strcpy(ptr,strcat(ptr,ptr2));  
+     
+                    if (mysql_query(conn,ptr)){
+                        fflush(stdout);
+                        fprintf(stdout, "\n%s",mysql_error(conn)); 
+                        asiento_duplicado=1;
+
+                    }
+                    mysql_close(conn);
+                    
+                    if (asiento_duplicado =0)
+                    {
+                        conn = mysql_init(NULL);
+                        // Connect to database /
+                        if (!mysql_real_connect(conn, server, user, password, 
+                                                        database, 0, NULL, 0)) {
+                            
+                            fprintf(stderr, "%s\n", mysql_error(conn));
+                            exit(1);
+                        }
+                        
+                    
+                        strcpy(ptr,"CALL validar_entradas_asiento(");
+                        strcpy(ptr2,temp);
+                        strcpy(ptr,strcat(ptr,ptr2));
+                        strcpy(ptr,strcat(ptr,coma));
+                        strcpy(ptr,strcat(ptr,comilla));
+                        strcpy(ptr2,fila);
+                        strcpy(ptr,strcat(ptr,ptr2));
+                        strcpy(ptr,strcat(ptr,comilla));
+                        strcpy(ptr,strcat(ptr,coma));
+                        strcpy(ptr2,fila);
+                        strcpy(ptr,strcat(ptr,ptr2));
+                        strcpy(ptr2,");");
+                        strcpy(ptr,strcat(ptr,ptr2));  
+            
+                        if (mysql_query(conn,ptr)){
+                            fflush(stdout);
+                            fprintf(stdout, "\n%s",mysql_error(conn));
+
+
+                        }
+                        else
+                        {
+                            
+                            res = mysql_use_result(conn);
+                            row = mysql_fetch_row(res);
+                            if (row==NULL){
+                                fprintf(stdout, "\n%s", mysql_error(conn)); 
+                                asiento_ocupado=1;
+            
+                            }    
+                        
+                        
+                        }    
+                        mysql_free_result(res);
+                        mysql_close(conn);
+                   
+                    
+
+
+                    }
+                }  
+                    
+                            
+        
+                
+                
+            }
+            contador=0;
+            break;
+        default:
+            bandera=1;
+            break;
+        }
+
+    token_asientos = strtok(NULL, "_,");  
+    }
+
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    if (mysql_query(conn,"SELECT count(edad) from temp_entradas_pasaporte where edad='A';")){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn));
+
+    }
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    strcpy(num_asientos_A,row[0]);
+    mysql_free_result(res);
+    mysql_close(conn);
+
+
+        conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    if (mysql_query(conn,"SELECT count(num_asiento) from temp_entradas_asiento;")){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn));
+
+    }
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    strcpy(num_asientos_totales,row[0]);
+    mysql_free_result(res);
+    mysql_close(conn);
+
+
+if (asiento_ocupado==1)
+{
+    printf("\nElegiste almenos un asiento ocupado");
+}
+
+if (formato_incorrecto==1)
+{
+    printf("\nFormato incorrecto o asiento inexistente");
+}
+
+if (strcmp(num_asientos_A,num_asientos_totales)!=0)
+{
+    printf("\nLa cantidad de asientos no concuerda con la cantidad de Adultos o elegiste almenos un asiento ocupado");    
+}
+if (strcmp(num_asientos_A,num_asientos_totales)==0 && formato_incorrecto==0 && asiento_ocupado==0 && pasaporte_duplicado==0 && formato_incorrecto_p==0)
+{
+    printf("\nProcesando petición...");
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"INSERT INTO reservacion_vuelo (fecha_hora_reserv,codigo_vuelo) values (SYSDATE(),");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+    }
+    res = mysql_use_result(conn);
+    mysql_free_result(res);
+    mysql_close(conn);
+
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    strcpy(ptr,"SELECT * FROM reservacion_vuelo where codigo_vuelo= ");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," order by id_reserv DESC LIMIT 1;");
+    strcpy(ptr,strcat(ptr,ptr2));      
+   
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+    }
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    strcpy(id_reserv,row[0]);
+    mysql_free_result(res);
+    mysql_close(conn);
+    
+    
+//ACA UDATEA LOS ASIENTOS
+
+num_asientos_int=atoi(num_asientos_totales);
+
+while (num_asientos_int > 0)
+{
+   
+
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        if (mysql_query(conn,"select * from temp_entradas_pasaporte where edad='A';")){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row!=NULL){
+            strcpy(pasaporte,row[0]);
+
+        }  
+        
+        
+        mysql_free_result(res);
+        mysql_close(conn);
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        if (mysql_query(conn,"delete from temp_entradas_pasaporte where edad='A' limit 1;")){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+        
+        mysql_close(conn);
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        if (mysql_query(conn,"select * from temp_entradas_asiento;")){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row!=NULL){
+            strcpy(fila,row[0]);
+            strcpy(tipo,row[1]);
+            strcpy(num_asi,row[2]);
+        }  
+        
+        
+        mysql_free_result(res);
+        mysql_close(conn);
+
+               conn = mysql_init(NULL);
+        
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        strcpy(ptr,"CALL pone_asiento(");
+        strcpy(ptr2,num_asi);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2,temp);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2,fila);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr,strcat(ptr,comilla));
+        quitar_Char(tipo,'L');
+        quitar_Char(tipo,'l');
+        quitar_Char(tipo,'0');
+        quitar_Char(tipo,'1');
+        quitar_Char(tipo,'2');
+        quitar_Char(tipo,'3');
+        quitar_Char(tipo,'4');
+        quitar_Char(tipo,'5');
+        quitar_Char(tipo,'6');
+        quitar_Char(tipo,'7');
+        quitar_Char(tipo,'8');
+        quitar_Char(tipo,'9');
+        strcpy(ptr2,"O");
+        strcpy(tipo,strcat(tipo,ptr2));
+        strcpy(ptr2,tipo);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2,");");
+        strcpy(ptr,strcat(ptr,ptr2));
+
+        
+        if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+
+        mysql_close(conn);
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        strcpy(ptr,"delete from temp_entradas_asiento where num_asiento= ");
+        strcpy(ptr2,num_asi);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2," and fila='");
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,fila);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2," and tipo='");
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,tipo);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2," limit 1 ;");
+        strcpy(ptr,strcat(ptr,ptr2));
+        
+
+        if (mysql_query(conn,ptr)){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+        
+        mysql_close(conn);
+
+
+        conn = mysql_init(NULL);
+        
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        strcpy(num_asi2,num_asi);
+        strcpy(ptr,"INSERT INTO clientexreservacion (id_reserv,pasaporte_cliente,fila_reserv,num_asiento_reserv,tipo_asiento_reserv,ind_edad)VALUES( ");
+        strcpy(ptr2,id_reserv);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2,pasaporte);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2,fila);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2,num_asi);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr,strcat(ptr,comilla));
+        quitar_Char(tipo,'0');
+        quitar_Char(tipo,'1');
+        quitar_Char(tipo,'2');
+        quitar_Char(tipo,'3');
+        quitar_Char(tipo,'4');
+        quitar_Char(tipo,'5');
+        quitar_Char(tipo,'6');
+        quitar_Char(tipo,'7');
+        quitar_Char(tipo,'8');
+        quitar_Char(tipo,'9');
+        quitar_Char(tipo,'O');
+        quitar_Char(tipo,'L');
+        quitar_Char(tipo,'o');
+        quitar_Char(tipo,'l');
+        strcpy(ptr2,"L");
+        strcpy(tipo,strcat(tipo,ptr2));
+        strcpy(ptr2,tipo);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2," pone_edad(");
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,pasaporte);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,"));");
+        strcpy(ptr,strcat(ptr,ptr2));    
+   
+        if (mysql_query(conn,ptr)){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+
+
+    
+        mysql_close(conn);
+        
+        
+
+
+    num_asientos_int=num_asientos_int-1;
+
+
+}
+
+
+
+//INFANTES
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    if (mysql_query(conn,"SELECT count(pasaporte) from temp_entradas_pasaporte where edad='I';")){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn));
+
+    }
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    strcpy(num_asientos_totales,row[0]);
+    mysql_free_result(res);
+    mysql_close(conn);
+
+
+num_asientos_int=atoi(num_asientos_totales);
+
+while (num_asientos_int > 0)
+{
+   
+
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        if (mysql_query(conn,"select * from temp_entradas_pasaporte where edad='I';")){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row!=NULL){
+            strcpy(pasaporte,row[0]);
+
+        }  
+        
+        
+        mysql_free_result(res);
+        mysql_close(conn);
+
+        conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        if (mysql_query(conn,"delete from temp_entradas_pasaporte where edad='I' limit 1;")){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+
+
+        mysql_close(conn);
+
+        conn = mysql_init(NULL);
+        
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        strcpy(ptr,"INSERT INTO clientexreservacion (id_reserv,pasaporte_cliente,tipo_asiento_reserv,ind_edad) VALUES (");
+        strcpy(ptr2,id_reserv);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2,pasaporte);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr2,"EL");
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr,strcat(ptr,comilla));
+        strcpy(ptr,strcat(ptr,coma));
+        strcpy(ptr2," pone_edad(");
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,pasaporte);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,"));");
+        strcpy(ptr,strcat(ptr,ptr2));    
+   
+
+        if (mysql_query(conn,ptr)){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+
+
+    
+        mysql_close(conn);
+        
+        
+
+
+    num_asientos_int=num_asientos_int-1;
+
+
+}
+
+//Calcular el precio
+
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                    database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"SELECT calcula_monto(");
+    strcpy(ptr2,id_reserv);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));    
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn));
+
+    }
+    
+    mysql_close(conn);
+
+    printf("\nReservación Exitosa! \nPor favor introduzca un nombre para el comprobante:");
+    fgets(comprobante,40,stdin);
+    quitar_Char(comprobante,'\n');
+    quitar_Char(comprobante,' ');
+    strcpy(ptr,"/home/randall/Desktop/TEC/Lenguajes/Proyecto#1/detalle_reserva/");
+    strcpy(ptr2,comprobante);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(comprobante_pdf,ptr);;
+    strcpy(ptr2,".txt");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(comprobante,ptr);
+
+    FILE * flujo = fopen(ptr,"a");
+    if (flujo==NULL){
+        perror("\nError en la creación del archivo");
+    }
+    else
+    {
+         conn = mysql_init(NULL);
+
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        
+        strcpy(ptr,"CALL sh_info_reserv (");
+        strcpy(ptr2,id_reserv);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,");");
+        strcpy(ptr,strcat(ptr,ptr2));  
+        
+
+        if (mysql_query(conn,ptr)){
+            fflush(stdout);
+            fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+        }
+
+
+        res = mysql_use_result(conn);             
+        fprintf(flujo,"\nDETALLE RESERVA\n");
+        
+        fprintf(flujo,"\n|id_Reservacion|Cantidad_Asientos|Fecha_Hora_Reserv|Id_Aerolinea|Nombre_Aerolinea|hub|Codigo_Vuelo|Nombre_Ciudad_D|Salida_Vuelo|Nombre_Ciudad_S|Monto_Reserva|");
+        fprintf(flujo, "\n");
+                    
+        while ((row = mysql_fetch_row(res)) != NULL){
+            fprintf(flujo,"\n|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10],row[11]);
+        }
+        printf("\n");
+        
+        
+
+        conn = mysql_init(NULL);
+        // Connect to database /
+        if (!mysql_real_connect(conn, server, user, password, 
+                                        database, 0, NULL, 0)) {
+            
+            fprintf(stderr, "%s\n", mysql_error(conn));
+            exit(1);
+        }
+        strcpy(ptr,"CALL sh_info_reserv_personas (");
+        strcpy(ptr2,id_reserv);
+        strcpy(ptr,strcat(ptr,ptr2));
+        strcpy(ptr2,");");
+        strcpy(ptr,strcat(ptr,ptr2));  
+
+
+        if (mysql_query(conn,ptr)){
+            fflush(stdout);
+            fprintf(stdout, "Ese código no esta en la tabla "); 
+
+        }
+
+        
+        res = mysql_use_result(conn);             
+        fprintf(flujo,"\nDETALLE PERSONA RESERVADO\n");
+        fprintf(flujo,"\n _________________ ___________________ _____________ _____________  ");
+        fprintf(flujo,"\n|Pasaporte_Cliente| Nombre_Cliente    |Prim_Apellido| Seg_Apellido| ");
+        fprintf(flujo,"\n ----------------- ------------------- ------------- -------------\n ");
+                    
+        while ((row = mysql_fetch_row(res)) != NULL){
+            fprintf(flujo,"\n|%s           |%s         |%s|%s\n", row[0], row[1], row[2], row[3]);
+        }
+        fprintf(flujo,"\n");
+    
+        mysql_free_result(res);
+        mysql_close(conn);  
+    
+    }
+    fflush(flujo);
+    fclose(flujo);
+ 
+    strcpy(ptr,"enscript ");
+    strcpy(ptr2,comprobante);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," -o - | ps2pdf - ");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,comprobante_pdf);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,".pdf");
+    strcpy(ptr,strcat(ptr,ptr2));
+ 
+    system(ptr);
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    strcpy(ptr,"SELECT * FROM reservacion_vuelo where id_reserv=");
+    strcpy(ptr2,id_reserv);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn));       
+       
+    }
+
+    mysql_free_result(res);
+    mysql_close(conn);  
+    
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+    strcpy(ptr,"CALL sh_info_reserv (");
+    strcpy(ptr2,id_reserv);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+    }
+
+
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE RESERVA\n");
+    printf("\n _______________ _________________ __________________ ____________ ________________ __________ ____________ _______________ ___________________ _______________ _____________  ");
+    printf("\n|id_Reservación |Cantidad_Asientos|Fecha_Hora_Reserv |Id_Aerolinea|Nombre_Aerolinea|hub       |Codigo_Vuelo|Nombre_Ciudad_D|Salida_Vuelo       |Nombre_Ciudad_S|Monto_Reserva|");
+    printf("\n --------------- ----------------- ------------------ ------------ ---------------- ---------- ------------ --------------- ------------------- --------------- ------------\n ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s              |%s                |%s|%s  |%s   |%s  |%s  |%s    |%s|%s    |%s    |%s\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10],row[11]);
+    }
+    printf("\n");
+    
+
+    mysql_free_result(res);
+    mysql_close(conn);
+
+    conn = mysql_init(NULL);
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"CALL sh_info_reserv_personas (");
+    strcpy(ptr2,id_reserv);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+    
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE PERSONA RESERVADO\n");
+    printf("\n _________________ ___________________ _____________ _____________  ");
+    printf("\n|Pasaporte_Cliente| Nombre_Cliente    |Prim_Apellido| Seg_Apellido| ");
+    printf("\n ----------------- ------------------- ------------- -------------\n ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s           |%s         |%s|%s\n", row[0], row[1], row[2], row[3]);
+    }
+    printf("\n");
+   
+    mysql_free_result(res);
+    mysql_close(conn);  
+}
+
+}
+
+
+void estado_reserv(){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    
+
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+
+    int bandera_sigu=0;
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+
+    printf("\nIntroduzca el id de reservación: "); 
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    quitar_Char(temp,'\n');
+    
+if (atoi(temp)!=0)
+{
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+
+    strcpy(ptr,"SELECT * FROM reservacion_vuelo where id_reserv=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+    res = mysql_use_result(conn);
+    row = mysql_fetch_row(res);
+    if (row==NULL){
+        fflush(stdout);
+        fprintf(stdout, "\nEse id de reserva no se encuentra");       
+        bandera_sigu=1;
+    }
+    else
+    {
+        bandera_sigu=0;
+        
+        
+    }
+    mysql_free_result(res);
+    mysql_close(conn);  
+    
+
+   if (bandera_sigu==0)
+   {
+       
+   
+   
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+    strcpy(ptr,"CALL sh_info_reserv (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s",mysql_error(conn)); 
+
+    }
+
+
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE RESERVA\n");
+    printf("\n _______________ _________________ __________________ ____________ ________________ __________ ____________ _______________ ___________________ _______________ _____________  ");
+    printf("\n|id_Reservación |Cantidad_Asientos|Fecha_Hora_Reserv |Id_Aerolinea|Nombre_Aerolinea|hub       |Codigo_Vuelo|Nombre_Ciudad_D|Salida_Vuelo       |Nombre_Ciudad_S|Monto_Reserva|");
+    printf("\n --------------- ----------------- ------------------ ------------ ---------------- ---------- ------------ --------------- ------------------- --------------- ------------\n ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s              |%s                |%s|%s  |%s   |%s  |%s  |%s    |%s|%s    |%s    |%s\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10],row[11]);
+    }
+    printf("\n");
+    
+
+    mysql_free_result(res);
+    mysql_close(conn);
+    
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    strcpy(ptr,"CALL sh_info_reserv_personas (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+    
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE PERSONA RESERVADO\n");
+    printf("\n _________________ ___________________ _____________ _____________  ");
+    printf("\n|Pasaporte_Cliente| Nombre_Cliente    |Prim_Apellido| Seg_Apellido| ");
+    printf("\n ----------------- ------------------- ------------- -------------\n ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s           |%s         |%s|%s\n", row[0], row[1], row[2], row[3]);
+    }
+    printf("\n");
+   }
+    mysql_free_result(res);
+    mysql_close(conn);  
+}
+else
+{
+    printf("\nFavor introducir un número");
+}
+
+ 
+}
+
+#include "script.h"
+
+struct usuario
+{
+    char primera[300];
+    char fecha[10];
+}usuario[2];
+
+
+
+int cargar_usuarios(){
+    int contador;
+    char coma[2]=",";
+    char comilla[2]="'";
+    char palabra[len_char];
+    char oracion[len_char];
+
+    contador=0;
+    
+    FILE * flujo = fopen ("usuarios.txt","rb");
+    if (flujo == NULL) {
+        perror("\nError en la apertura de archivo\n");
+        return 1;
+    }
+
+    char cadena[200];
+    char *token;
+    while (feof(flujo)==0)
+    {
+        fgets(cadena,200, flujo);
+
+        token = strtok(cadena, ",");
+        while( token != NULL) {
+            if (contador ==7)
+            {
+                quitar_Char(token, '\n');
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].fecha);
+                strcpy(usuario[0].fecha,strcat(oracion,coma));
+                strcpy(usuario[0].fecha,strcat(oracion,palabra));
+                
+                insertar_usuario();
+                strcpy(usuario[0].primera, "");
+                strcpy(usuario[0].fecha, "");
+                contador =0;
+            }
+            
+            else if (contador == 0)
+            {
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].primera);
+                strcpy(usuario[0].primera,strcat(oracion,palabra));
+                contador=contador+1;
+            }
+            
+            else if (contador < 4)
+            {
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].primera);
+                strcpy(usuario[0].primera,strcat(oracion,coma));
+                strcpy(usuario[0].primera,strcat(oracion,comilla));
+                strcpy(usuario[0].primera,strcat(oracion,palabra));
+                strcpy(usuario[0].primera,strcat(oracion,comilla));
+                contador=contador+1;
+            }
+            
+            else if (contador == 4)
+            {
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].primera);
+                strcpy(usuario[0].primera,strcat(oracion,coma));
+                strcpy(usuario[0].primera,strcat(oracion,comilla));
+                strcpy(usuario[0].primera,strcat(oracion,palabra));
+                contador=contador+1;
+            }
+                        
+            
+            else if (contador == 5){
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].fecha);    
+                strcpy(usuario[0].fecha,strcat(oracion,palabra));
+                contador=contador+1;
+            }
+            else if (contador > 5)
+            {
+                strcpy(palabra,token);
+                strcpy(oracion,usuario[0].fecha);
+                strcpy(usuario[0].fecha,strcat(oracion,coma));
+                strcpy(usuario[0].fecha,strcat(oracion,palabra));
+                contador=contador+1;
+                
+            }
+                
+            
+
+            token = strtok(NULL, ",");
+            
+        }
+
+    
+    }
+   
+    
+    fclose (flujo);
+    printf("\nDatos Cargados\n");
+    
+ 
+    return 0;
+}
+
+void insertar_usuario(){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    FILE *flujo = fopen("usuarios_reporte.txt", "a");
+    
+    char ptr[200];
+    char ptr2[200];
+    char coma[2]=",";
+    char comilla[2]="'";
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    if (flujo==NULL){
+        perror("Error en la creacion del archivo \n\n");
+    
+    }
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+    
+    //REALIZA CONSULTAS CRUDS
+
+    // send SQL query /
+
+    
+    strcpy(ptr,"Insert into cliente values(");
+    strcpy(ptr2,usuario[0].primera);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,"'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr2,"STR_TO_DATE('");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,usuario[0].fecha);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr,strcat(ptr,comilla));
+    strcpy(ptr2,strcat(ptr2,","));
+    strcpy(ptr,strcat(ptr,coma));
+    strcpy(ptr2,"'%Y,%m,%d'))");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        
+        fprintf(flujo, "%s in '%s'\n", mysql_error(conn), ptr);
+        
+    }
+    else
+    {
+        fprintf(flujo, "Se incerto con exito %s \n",ptr);
+    }
+    
+    fflush(flujo);
+    fclose(flujo);
+    
+
+    res = mysql_use_result(conn);
+
+    // close connection 
+    strcpy(ptr,"");
+    strcpy(ptr2,"");
+    mysql_free_result(res);
+    mysql_close(conn);
+    
+
+}
+
+
+#include "script.h"
+
+void estadisticas(){
+    MYSQL *conn;
+    MYSQL *conn2;
+    MYSQL_RES *res;
+    MYSQL_RES *res2;
+    MYSQL_ROW row;
+    MYSQL_ROW row2;
+    
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+    char temp;
+    do{
+    conn = mysql_init(NULL);
+    conn2 = mysql_init(NULL);
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    if (!mysql_real_connect(conn2, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn2));
+        exit(1);
+    }
+    
+    
+    
+    printf("\n\t\t ************************************\n");
+	printf("\n\t\t             Estadísticas  \n");
+	printf("\n\t\t ************************************\n");
+    printf ("\n A.Top 3 de vuelos de mayor venta (de mayor a menor)");
+    printf ("\n B.Top 3 de vuelos con mayor cantidad de personas (de mayor a menor, incluyendo infantes)");
+    printf ("\n C.Volver al menu operativo\n");
+    printf("\nIntroduzca su opcion de A a C: "); 
+    scanf("%s",&temp);
+    
+    
+    switch (temp)
+    {
+    case 'A': 
+        printf("\nTOP 3 DE VUELOS CON MAYOR VENTA\n");
+        if (mysql_query(conn,"CALL sh_top_venta();")){
+            fprintf(stderr, "%s\n", mysql_error(conn));
+        }
+        else
+        {
+            res = mysql_use_result(conn);
+        
+            printf("\n ____________ _________");
+            printf("\n|Código_Vuelo|Ganancias|");
+            printf("\n ------------ ---------");
+        
+            while ((row = mysql_fetch_row(res)) != NULL){
+                printf("\n|%s       |%s     |\n", row[0],row[1]);
+            }
+                printf("\n");
+            res = mysql_use_result(conn);    
+        }
+        mysql_free_result(res); 
+        
+
+        break;
+    case 'B': 
+        printf("\nTOP 3 DE VUELOS CON MAYOR VENTA\n");
+        if (mysql_query(conn2,"CALL sh_top_pasajeros();")){
+            fprintf(stderr, "%s\n", mysql_error(conn2));
+        }
+        else
+        {
+             
+            res2 = mysql_use_result(conn2);
+    
+            printf("\n ____________ _____________");
+            printf("\n|Código_Vuelo|Num_Pasajeros|");
+            printf("\n ------------ -------------");
+    
+            while ((row2 = mysql_fetch_row(res2)) != NULL){
+            printf("\n|%s       |%s            |\n", row2[0],row2[1]);
+            }
+            printf("\n");
+            res2 = mysql_use_result(conn2);     
+        }
+        mysql_free_result(res2); 
+        
+        break;
+    case 'C': 
+        break;
+    default:
+        printf("\n Seleccione una opción de A-C");
+        res = mysql_use_result(conn); 
+        mysql_free_result(res);
+        res2 = mysql_use_result(conn); 
+        mysql_free_result(res2);
+        mysql_close(conn);
+        mysql_close(conn2);
+        break;
+
+    }
+    }while (temp!='C');
+    res = mysql_use_result(conn); 
+    mysql_free_result(res);
+    res2 = mysql_use_result(conn); 
+    mysql_free_result(res2);
+    mysql_close(conn);
+    mysql_close(conn2);
+
+}
+
+#include "script.h"
+
+void estado_vuelo(){
+    MYSQL *conn;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    
+    int bandera;
+    char temp[40];
+    char ptr[200];
+    char ptr2[200];
+    char comilla[2]="'";
+
+    
+
+    char *server = "localhost"; 
+    char *database = "sys";
+    char *user="root";
+    char *password="root";
+
+    conn = mysql_init(NULL);
+
+    // Connect to database /
+    if (!mysql_real_connect(conn, server, user, password, 
+                                      database, 0, NULL, 0)) {
+        
+        fprintf(stderr, "%s\n", mysql_error(conn));
+        exit(1);
+    }
+    
+
+    do{
+    printf("\nCÓDIGO DE VUELOS DISPONIBLES\n");
+    if (mysql_query(conn,"select distinct codigo_vuelo from detalle_vuelo;")){
+        fprintf(stderr, "%s\n", mysql_error(conn));
+    }
+    res = mysql_use_result(conn);
+    
+    printf("\n ____________");
+    printf("\n|Código_Vuelo|");
+    printf("\n ------------");
+    
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s       |\n", row[0]);
+    }
+        printf("\n");
+    res = mysql_use_result(conn);
+
+    
+    printf("\nIntroduzca la el código de vuelo a consultar(unicamente elija uno de la tabla anterior):");
+    fflush(stdin);
+    fgets(temp,40,stdin);
+    quitar_Char(temp, '\n');
+    strcpy(ptr,"Select distinct codigo_vuelo from vuelo where codigo_vuelo =");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,";");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+        bandera=1;
+
+    }
+    else
+    {
+         
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            bandera=1;
+            fflush(stdout);
+            fprintf(stdout, "Ese código no esta en la tabla ");       
+           
+        }
+        else
+        {
+           bandera=0;
+        
+            
+            
+        }
+    }
+    
+    mysql_free_result(res);
+    }while (bandera==1);
+    
+    printf("\nSimbología:");
+    printf("\nBL: Business libre.");
+    printf("\nBO: Business ocupado."); 
+    printf("\nSL: Premium Economy libre.");
+    printf("\nSO: Premium Economy ocupado.");
+    printf("\nEL: Economy libre.");
+    printf("\nEO: Economy ocupado.");
+
+
+    printf("\n _________ _____ ______ ____ ____________");
+    printf("\n|DETALLE GRAFICAMENTE DEL ESTADO DE VUELO| ");
+    printf("\n --------- ----- ------ ---- ------------\n");
+
+            
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='A'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "\n%s", mysql_error(conn));
+
+    }
+
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila A");       
+           
+        }
+        else
+        {
+            printf("\nA: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+            
+        }
+    mysql_free_result(res);
+    
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='B'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila B");       
+           
+        }
+        else
+        {
+            printf("\nB: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+                
+           
+            
+            
+        }
+    mysql_free_result(res);
+    
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='C'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila C");       
+           
+        }
+        else
+        {
+
+            printf("\nC: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+
+                
+           
+            
+            
+        }
+    mysql_free_result(res);
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='D'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila D");       
+           
+        }
+        else
+        {
+
+            printf("\nD: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+            mysql_free_result(res);
+                
+           
+            
+            
+        }
+    mysql_free_result(res);
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='E'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+    
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila E");       
+           
+        }
+        else
+        {
+
+            printf("\nE: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+           
+                
+           
+            
+            
+        }
+    mysql_free_result(res);
+    strcpy(ptr,"SELECT fila, tipo_asiento,num_asiento from detalle_vuelo where codigo_vuelo=");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," and fila='F'");
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2," ORDER BY fila,num_asiento ASC ;");
+    strcpy(ptr,strcat(ptr,ptr2));
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "%s", mysql_error(conn));
+
+    }
+        res = mysql_use_result(conn);
+        row = mysql_fetch_row(res);
+        if (row==NULL){
+            fflush(stdout);
+            fprintf(stdout, "Ese codigo vuelo no cuenta con fila F");       
+           
+        }
+        else
+        {
+            printf("\nF: ");
+            printf(" %s_%s,",row[1],row[2]); 
+            while ((row = mysql_fetch_row(res))!=NULL)
+            {
+                printf(" %s_%s,",row[1],row[2]);    
+            }
+            printf("\n");
+            res = mysql_use_result(conn);
+           
+                
+           
+            
+            
+        }
+   
+    strcpy(ptr,"CALL sh_vuelo (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+
+    res = mysql_use_result(conn);           
+    printf("\nDETALLE VUELO\n");
+    printf("\n _______________ ______________ ________________ _______________ ___________ _______ ________ _____ ");
+    printf("\n| Ciudad_Salida | Salida_Vuelo | Ciudad_Llegada | Llegada_Vuelo | Matricula | Marca | Modelo | Año |");
+    printf("\n --------------- -------------- ---------------- --------------- ----------- ------- -------- -----\n");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s|%s|%s|%s|%s|%s|%s|%s|\n", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]);
+    }
+        printf("\n");
+    mysql_next_result(conn);
+    res = mysql_use_result(conn);
+    mysql_next_result(conn);
+                
+          
+    
+
+    strcpy(ptr,"CALL sh_precio_asiento (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+
+    res = mysql_use_result(conn);             
+    printf("\nCATEGORIAS ASIENTOS\n");
+    printf("\n _______________ ______________ _______________ ");
+    printf("\n| Rango_Asiento | Edad_Rango   | Precio_Asiento| ");
+    printf("\n --------------- -------------- --------------- ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s             |%s             |%s           |\n", row[0], row[1], row[2]);
+    }
+    printf("\n");
+    mysql_next_result(conn);
+    res = mysql_use_result(conn);  
+
+    mysql_next_result(conn);
+    
+    strcpy(ptr,"CALL sh_detalle_reserv_personas (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+    
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE PERSONA RESERVADO\n");
+    printf("\n _______________ _________________ ___________________ _____________ _____________ _____________ ___________________ ");
+    printf("\n|id_Reservación |Pasaporte_Cliente| Nombre_Cliente    |Prim_Apellido| Seg_Apellido| Fila_Reserva|Num_Asiento_Reserva|");
+    printf("\n --------------- ----------------- ------------------- ------------- ------------- ------------- -------------------\n ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s              |%s            |%s|%s|%s|%s|%s|\n", row[0], row[1], row[2], row[3],row[4],row[5],row[6]);
+    }
+    printf("\n");
+    mysql_next_result(conn);
+    res = mysql_use_result(conn);    
+
+
+    mysql_next_result(conn);
+    strcpy(ptr,"CALL sh_detalle_reserv (");
+    strcpy(ptr2,temp);
+    strcpy(ptr,strcat(ptr,ptr2));
+    strcpy(ptr2,");");
+    strcpy(ptr,strcat(ptr,ptr2));  
+
+
+    if (mysql_query(conn,ptr)){
+        fflush(stdout);
+        fprintf(stdout, "Ese código no esta en la tabla "); 
+
+    }
+
+
+    res = mysql_use_result(conn);             
+    printf("\nDETALLE RESERVADO\n");
+    printf("\n _______________ _________________ ___________________ _____________ ");
+    printf("\n|id_Reservación |Cantidad_Asientos|Cantidad_Utilizados|Monto_Pagado |");
+    printf("\n --------------- ----------------- ------------------- ------------- ");
+                
+    while ((row = mysql_fetch_row(res)) != NULL){
+        printf("\n|%s              |%s                |%s                  |%s         |\n", row[0], row[1], row[2], row[3]);
+    }
+    printf("\n");
+    res = mysql_use_result(conn);    
+
+        
+    printf("\n");
+    mysql_free_result(res);
+    mysql_close(conn);
+
+
+}
