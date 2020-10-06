@@ -1,0 +1,15 @@
+
+DETALLE RESERVA
+
+|id_Reservacion|Cantidad_Asientos|Fecha_Hora_Reserv|Id_Aerolinea|Nombre_Aerolinea|hub|Codigo_Vuelo|Nombre_Ciudad_D|Salida_Vuelo|Nombre_Ciudad_S|Monto_Reserva|
+
+|7|1|2020-10-05 19:14:58|15121910|Avianca|Alajuela|11111|Alajuela|2020-05-01 09:30:00|Nicoya|2020-05-01 10:30:00|1000
+
+DETALLE PERSONA RESERVADO
+
+ _________________ ___________________ _____________ _____________  
+|Pasaporte_Cliente| Nombre_Cliente    |Prim_Apellido| Seg_Apellido| 
+ ----------------- ------------------- ------------- -------------
+ 
+|11112           |Nikol         |Vargas|Arroyo
+
