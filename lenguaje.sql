@@ -411,3 +411,238 @@ INSERT INTO clientexreservacion VALUES (5,11116,'B','BL',1,pone_edad (11116));
 INSERT INTO clientexreservacion VALUES (6,11115,'E','EL',2,pone_edad (11115));
 INSERT INTO clientexreservacion (id_reserv,pasaporte_cliente,tipo_asiento_reserv,ind_edad)
 	VALUES (6,11111,'EL',pone_edad (11111));
+
+-- para registro de aviones
+/*
+Entrada: Un varchar(20)
+Salida: No posee
+Funcionalidad: Procedure encargado de filtrar los aviones por su marca
+*/
+DROP procedure IF EXISTS  sh_marca_avion;
+DELIMITER //
+create procedure sh_marca_avion (in v_marca VARCHAR(20))
+begin
+    SELECT * 
+    FROM avion
+    WHERE marca = v_marca;
+end
+//
+
+-- funcionalidades, correr los procedures uno por uno para poder utilizar el drop
+-- para estado de vuelo
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar informacion general de un vuelo
+despliega la ciudad de salida, la fecha y hora de salida, la ciudad de llegada, la fecha y hora de llegada, 
+la matricula del avion, la marca del avion, el modelo y el año del avion
+*/
+DROP procedure IF EXISTS  sh_vuelo;
+DELIMITER //
+create procedure sh_vuelo (in v_codigo_vuelo int)
+begin
+    SELECT d.nombre_ciudad as ciudad_salida,a.salida_vuelo,c.nombre_ciudad as ciudad_llegada,a.llegada_vuelo,e.matricula,e.marca,e.modelo,e.anno
+    FROM vuelo a
+    inner join ciudadxvuelo b
+    on a.codigo_vuelo = b.codigo_vuelo
+    inner join ciudad c
+    on c.codigo_ciudad = b.destino_vuelo
+    inner join ciudad d
+    on d.codigo_ciudad = b.origen_vuelo
+    inner join avion e
+    on e.matricula = a.matricula
+    where a.codigo_vuelo = v_codigo_vuelo;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar los precios de los asientos por tipo
+*/
+DROP procedure IF EXISTS  sh_precio_asiento;
+DELIMITER //
+create procedure sh_precio_asiento (in v_codigo_vuelo int)
+begin
+	SELECT rango_asiento,ind_edad_rango, precio_asiento 
+    from detalle_asiento 
+    where codigo_vuelo = v_codigo_vuelo;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar los asientos de un avion
+*/
+DROP procedure IF EXISTS  sh_asiento;
+DELIMITER //
+create procedure sh_asiento (in v_codigo_vuelo int)
+begin
+	SELECT fila, tipo_asiento,num_asiento 
+    from detalle_vuelo 
+    where codigo_vuelo = v_codigo_vuelo
+    ORDER BY fila, num_asiento ASC;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de calcular el numero de asientos ocupados y el numero de asientos libres
+*/
+DROP PROCEDURE IF EXISTS  calcula_ocupados;
+DELIMITER //
+create procedure calcula_ocupados (in v_codigo_vuelo int)
+begin
+	SELECT tipo_asiento,count(tipo_asiento) as cantidad
+    from detalle_vuelo 
+    where codigo_vuelo = v_codigo_vuelo
+    group by tipo_asiento;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: Un entero
+Funcionalidad: Funcion encargada de calcular el monto por pagar de una reservacion
+*/
+DROP FUNCTION IF EXISTS  calcula_monto;
+DELIMITER //
+create FUNCTION calcula_monto (v_id_reserv int)
+RETURNS INT
+begin
+	DECLARE v_monto INT;
+	SELECT SUM(precio_asiento) into v_monto
+    FROM clientexreservacion a
+    INNER JOIN reservacion_vuelo b
+    ON a.id_reserv = b.id_reserv
+    INNER JOIN detalle_asiento c
+    ON b.codigo_vuelo = c.codigo_vuelo
+    where a.tipo_asiento_reserv = c.rango_asiento AND a.ind_edad = c.ind_edad_rango and b.id_reserv = v_id_reserv;
+    
+    RETURN v_monto;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de sacar la informacion de todas las reservaciones realizadas para un vuelo
+*/
+DROP PROCEDURE IF EXISTS  sh_detalle_reserv;
+DELIMITER //
+create procedure sh_detalle_reserv (in v_codigo_vuelo int)
+begin
+	SELECT b.id_reserv,count(c.tipo_asiento_reserv) as cantidad_asientos,count(c.fila_reserv) as cantidad_utilizados, calcula_monto(b.id_reserv) as monto_pagado
+    FROM vuelo a
+    INNER JOIN reservacion_vuelo b
+    ON a.codigo_vuelo = b.codigo_vuelo
+    INNER JOIN clientexreservacion c
+    ON b.id_reserv = c.id_reserv
+    where a.codigo_vuelo = v_codigo_vuelo
+    GROUP BY b.id_reserv
+    ORDER BY b.id_reserv ASC;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar las personas que reservaron junto con sus asientos
+*/
+DROP PROCEDURE IF EXISTS  sh_detalle_reserv_personas;
+DELIMITER //
+create procedure sh_detalle_reserv_personas (in v_codigo_vuelo int)
+begin
+	SELECT b.id_reserv,d.pasaporte_cliente,d.nombre_cli,d.pri_apellido,d.seg_apellido, c.fila_reserv,c.num_asiento_reserv
+    FROM vuelo a
+    INNER JOIN reservacion_vuelo b
+    ON a.codigo_vuelo = b.codigo_vuelo
+    INNER JOIN clientexreservacion c
+	ON b.id_reserv = c.id_reserv
+    INNER JOIN cliente d
+    ON c.pasaporte_cliente = d.pasaporte_cliente
+    where a.codigo_vuelo = v_codigo_vuelo
+    ORDER BY b.id_reserv ASC;
+end
+//
+
+/*
+Entrada: Un entero
+Salida: Un varchar(1)
+Funcionalidad: Funcion encargada de retornar un varchar según la edad del pasajero
+*/
+DROP FUNCTION IF EXISTS  pone_edad;
+DELIMITER //
+create FUNCTION pone_edad (v_pasaporte_cliente int)
+RETURNS VARCHAR(1)
+begin
+	DECLARE v_edad INT;
+    DECLARE v_nacimiento DATE;
+    DECLARE v_res VARCHAR(1);
+    
+	SELECT fecha_nac into v_nacimiento
+    FROM cliente
+    WHERE pasaporte_cliente = v_pasaporte_cliente;
+    
+    SELECT YEAR(CURDATE()) - YEAR(v_nacimiento) + IF(DATE_FORMAT(CURDATE(),'%m-%d') > 
+DATE_FORMAT(v_nacimiento,'%m-%d'), 0 , -1 ) INTO v_edad;
+    
+    IF v_edad >= 3 THEN
+		SELECT 'A' INTO v_res;
+    ELSE
+		SELECT 'I' INTO v_res;
+        
+	END IF;
+    
+    RETURN v_res;
+end;
+//
+
+-- para estadisticas
+
+/*
+Entrada: No posee
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar los vuelos que más dinero han recaudado
+*/
+DROP PROCEDURE IF EXISTS  sh_top_venta;
+DELIMITER //
+create procedure sh_top_venta ()
+begin
+SELECT codigo_vuelo,SUM(monto_pagado) as ganacias FROM(
+	SELECT a.codigo_vuelo,b.id_reserv, calcula_monto(b.id_reserv) as monto_pagado
+    FROM vuelo a
+    INNER JOIN reservacion_vuelo b
+    ON a.codigo_vuelo = b.codigo_vuelo
+    INNER JOIN clientexreservacion c
+    ON b.id_reserv = c.id_reserv
+    GROUP BY a.codigo_vuelo,b.id_reserv) as a
+    GROUP BY codigo_vuelo
+    ORDER BY ganacias DESC LIMIT 3;
+end
+//
+
+/*
+Entrada: No posee
+Salida: No posee
+Funcionalidad: Procedure encargado de desplegar los vuelos por la cantidad de pasajeros
+*/
+DROP PROCEDURE IF EXISTS  sh_top_pasajeros;
+DELIMITER //
+create procedure sh_top_pasajeros ()
+begin
+	SELECT a.codigo_vuelo, count(c.pasaporte_cliente) as num_pasajeros 
+    FROM vuelo a
+    INNER JOIN reservacion_vuelo b
+    ON a.codigo_vuelo = b.codigo_vuelo
+    INNER JOIN clientexreservacion c
+    ON b.id_reserv = c.id_reserv
+    GROUP BY a.codigo_vuelo
+    ORDER BY num_pasajeros DESC LIMIT 3;
+end
+//
+
+
